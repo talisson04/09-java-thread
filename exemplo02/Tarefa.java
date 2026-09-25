@@ -1,29 +1,39 @@
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.ThreadLocalRandom; // Ferramenta para gerar números aleatórios
 
 public class Tarefa {
     private final ReentrantLock mutex = new ReentrantLock();
 
-    public void processarComTimeout(String nome) {
-        System.out.println(nome + " tentando pegar o Mutex...");
+    // O método agora recebe o nome da thread e o tempo máximo (timeout) que ela topa esperar
+    public void processarComTimeout(String nome, long tempoMaximoEspera) {
+        System.out.println(nome + " chegou e aceita esperar até " + tempoMaximoEspera + "ms pelo cadeado.");
 
         try {
-            // Tenta pegar o cadeado. Se estiver ocupado, espera no máximo 2 segundos.
-            if (mutex.tryLock(2, TimeUnit.SECONDS)) {
+            // tryLock com parâmetros: Tenta pegar o cadeado, mas espera até o tempo limite.
+            // Se conseguir dentro do tempo, retorna true. Se o tempo estourar, retorna false.
+            if (mutex.tryLock(tempoMaximoEspera, TimeUnit.MILLISECONDS)) {
                 try {
-                    // --- REGIÃO CRÍTICA ---
-                    System.out.println(nome + " conseguiu trancar o Mutex e entrou na seção crítica!");
-                    Thread.sleep(4000); // Simula uma tarefa demorada (4 segundos).
+                    // --- SEÇÃO CRÍTICA ---
+                    System.out.println("[ACESSO PERMITIDO] " + nome + " conseguiu trancar o Mutex!");
+                    
+                    // Sorteia um tempo de trabalho aleatório entre 1000ms (1s) e 4000ms (4s)
+                    int tempoSimulacao = ThreadLocalRandom.current().nextInt(1000, 4001);
+                    System.out.println(nome + " vai trabalhar na seção crítica por " + tempoSimulacao + "ms.");
+                    
+                    // Simula a thread trabalhando por esse tempo aleatório
+                    Thread.sleep(tempoSimulacao);
+                    
                 } finally {
-                    mutex.unlock(); // Sempre libera no finally.
-                    System.out.println(nome + " liberou o Mutex.");
+                    mutex.unlock();
+                    System.out.println("[LIBERADO] " + nome + " terminou o trabalho e destrancou o Mutex.");
                 }
             } else {
-                // Se passarem 2 segundos e o cadeado continuar ocupado:
-                System.out.println(nome + " CANCELOU a operação: tempo limite de espera esgotado!");
+                // Se o tempo configurado estourar e a thread não conseguir a chave, ela cai aqui.
+                System.out.println("[DESISTIU] " + nome + " cansou de esperar os " + tempoMaximoEspera + "ms e foi embora!");
             }
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println("Erro na thread " + nome + ": " + e.getMessage());
         }
     }
 }
